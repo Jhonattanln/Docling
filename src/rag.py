@@ -1,6 +1,7 @@
 ########################### Langchain ###########################
 import os
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI # type: ignore
+from langchain_core.prompts import PromptTemplate # typr: ignore
 
 endpoint = os.getenv("ENDPOINT_URL", "https://oai-cvm358.openai.azure.com/")
 deployment = os.getenv("DEPLOYMENT_NAME", "gpt-4o-mini")
@@ -13,7 +14,11 @@ client = AzureChatOpenAI(
     api_version="2024-05-01-preview",
     azure_endpoint=endpoint
 )
+template = "You are a quantitative finance analyst, answar the following question: {question}" 
+prompt_template = PromptTemplate(template=template, input_variables=["question"])
 
-# Exemplo de uso
-response = client.invoke("Tell me a joke")
+# Invocar o modelo de linguagem com a pergunta
+llm_chain = prompt_template | client
+response = llm_chain.invoke({'question': 'What is a stock option?'})
+
 print(response)
