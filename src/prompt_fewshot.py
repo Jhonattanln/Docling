@@ -1,11 +1,15 @@
 ########################### Langchain ###########################
 import os
+from dotenv import load_dotenv # type: ignore
 from langchain_openai import AzureChatOpenAI # type: ignore
-from langchain_core.prompts import PromptTemplate, FewShotPromptTemplate # typr: ignore
+from langchain_core.prompts import PromptTemplate, FewShotPromptTemplate # type: ignore
 
-endpoint = os.getenv("ENDPOINT_URL", "https://oai-cvm358.openai.azure.com/")
-deployment = os.getenv("DEPLOYMENT_NAME", "gpt-4o-mini")
-subscription_key = os.getenv("AZURE_OPENAI_API_KEY", "15b50eb85377452b841989f625b8f577")
+
+load_dotenv()
+
+endpoint = os.getenv("ENDPOINT_URL")
+deployment = os.getenv("DEPLOYMENT_NAME")
+subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
 
 # Inicializar o cliente do Serviço OpenAI do Azure com autenticação baseada em chave
 client = AzureChatOpenAI(
@@ -14,14 +18,19 @@ client = AzureChatOpenAI(
     api_version="2024-05-01-preview",
     azure_endpoint=endpoint)
 
-examples = [{
+examples = [
+    {
     'question': 'How many DataCamp courses has Jack completed?',
-    'answer': '36'},
+    'answer': '36'
+    },
     {
     'question': 'How much XP does Jack have on DataCamp?',
-    'answer': '284,320XP'},
-    {'question': 'What technology does Jack learn about most on DataCamp?',
-    'answer': 'Python'}
+    'answer': '284,320XP'
+    },
+    {
+    'question': 'What technology does Jack learn about most on DataCamp?',
+    'answer': 'Python'
+    }
 ]
 
 exemple_prompt = PromptTemplate.from_template('Question: {question}\n{answer}')
