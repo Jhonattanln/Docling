@@ -14,7 +14,7 @@ subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
 
 # Inicializar o cliente do Serviço OpenAI do Azure
 client = ChatOpenAI(
-    deployment_name=deployment,
+    azure_deployment=deployment,
     api_key=subscription_key,
     api_version="2024-05-01-preview",
     azure_endpoint=endpoint
@@ -23,5 +23,6 @@ client = ChatOpenAI(
 tools = load_tools(["llm-math"], llm=client, )
 agent = create_react_agent(llm=client, tools=tools, prompt="What is the square root of 101?")
 messages = agent.invoke({"question": [("human", "What is the square root of 101?")]})
+
 print(messages)
 

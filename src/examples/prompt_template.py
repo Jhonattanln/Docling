@@ -1,11 +1,10 @@
 ########################### Langchain ###########################
 import os
 from dotenv import load_dotenv
-from langchain_openai import AzureChatOpenAI # type: ignore
-from langchain_core.prompts import PromptTemplate # type: ignore
+from langchain_openai import AzureChatOpenAI
+from langchain_core.prompts import PromptTemplate
 
 load_dotenv()
-
 
 endpoint = os.getenv("ENDPOINT_URL")
 deployment = os.getenv("DEPLOYMENT_NAME")
@@ -13,8 +12,8 @@ subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
 
 # Inicializar o cliente do Serviço OpenAI do Azure com autenticação baseada em chave
 client = AzureChatOpenAI(
-    deployment_name=deployment,
-    api_key=subscription_key,
+    azure_deployment=deployment,
+    api_key=subscription_key, # type: ignore
     api_version="2024-05-01-preview",
     azure_endpoint=endpoint
 )
