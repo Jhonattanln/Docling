@@ -4,8 +4,7 @@ from dotenv import load_dotenv
 from langchain_openai import AzureChatOpenAI
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_docling.loader import DoclingLoader
-from langchain_text_splitters import PyTextSplitter
-
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 load_dotenv()
 
@@ -25,4 +24,12 @@ client = AzureChatOpenAI(
 load = DoclingLoader('2311.04727v2.pdf')
 
 data = load.load()
-print(data[0])
+
+# Split o pdf
+rc_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=500,
+    chunk_overlap=200,
+    separators=["\n", "\n\n"]
+)
+docs = rc_splitter.split_documents(data)
+print(docs[0])
