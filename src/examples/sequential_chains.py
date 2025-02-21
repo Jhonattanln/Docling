@@ -24,8 +24,6 @@ destination_prompt = PromptTemplate(input_variables=["destination"],
 activities_prompt = PromptTemplate(input_variables=["activities"],
                                    template="I only have one day, so can you create an itinerary from your top three activities: {activities}.")
 
-
-
 seq_chain = ({"activities": destination_prompt | client | StrOutputParser()}    
              | activities_prompt    | client    | StrOutputParser()) # Pergunta de destino -> Atividades -> Itinerário
 
