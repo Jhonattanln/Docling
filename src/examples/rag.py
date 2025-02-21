@@ -6,8 +6,6 @@ from langchain_community.vectorstores import Chroma
 from langchain_docling.loader import DoclingLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import PromptTemplate
-from langchain_core.runnables import RunnablePassthrough
-from langchain_core.output_parsers import StrOutputParser
 from langchain_docling.loader import ExportType
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
@@ -16,7 +14,6 @@ import json
 from pathlib import Path
 from tempfile import mkdtemp
 from langchain_milvus import Milvus
-
 
 load_dotenv()
 
@@ -31,6 +28,7 @@ llm = AzureChatOpenAI(
     api_version="2024-05-01-preview",
     azure_endpoint=endpoint
 )
+
 EXPORT_TYPE = ExportType.DOC_CHUNKS
 # Load a PDF document
 loader_docling = DoclingLoader(file_path='2311.04727v2.pdf',
@@ -54,12 +52,12 @@ elif EXPORT_TYPE == ExportType.MARKDOWN:
 else:
     raise ValueError(f"Unexpected export type: {EXPORT_TYPE}")
 
-
 # Embedding dos chunks
 embedding = AzureOpenAIEmbeddings(api_key=subscription_key,azure_endpoint=endpoint,
                                         model='text-embedding-3-small')
 
 milvus_uri = str(Path(mkdtemp()) / "docling.db")  # or set as needed
+
 vectorstore = Milvus.from_documents(
     documents=splits,
     embedding=embedding,
@@ -73,7 +71,8 @@ PROMPT = PromptTemplate.from_template(
     "Context information is below.\n---------------------\n{context}\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: {input}\nAnswer:\n",
 )
 QUESTION = "Comment about this paper"
-retriever = vectorstore.as_retriever(search_kwargs={"k": TOP_K})
+retriever = vectorstore.as_retriever(
+    search_kwargs={"k": TOP_K})
 
 def clip_text(text, threshold=100):
     return f"{text[:threshold]}..." if len(text) > threshold else text
@@ -86,12 +85,3 @@ resp_dict = rag_chain.invoke({"input": QUESTION})
 
 clipped_answer = clip_text(resp_dict["answer"], threshold=200)
 print(f"Question:\n{resp_dict['input']}\n\nAnswer:\n{clipped_answer}")
-for i, doc in enumerate(resp_dict["context"]):
-    print()
-    print(f"Source {i+1}:")
-    print(f"  text: {json.dumps(clip_text(doc.page_content, threshold=350))}")
-    for key in doc.metadata:
-        if key != "pk":
-            val = doc.metadata.get(key)
-            clipped_val = clip_text(val) if isinstance(val, str) else val
-            print(f"  {key}: {clipped_val}")
