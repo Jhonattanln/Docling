@@ -1,12 +1,22 @@
 ########################### Langchain ###########################
 import os
 from dotenv import load_dotenv
-from langchain_openai import AzureChatOpenAI
-from langchain_openai import OpenAIEmbeddings
-from langchain_chroma import Chroma
+from langchain_openai import AzureChatOpenAI, AzureOpenAIEmbeddings
+from langchain_community.vectorstores import Chroma
 from langchain_docling.loader import DoclingLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from langchain_docling.loader import ExportType
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+
+import json 
+from pathlib import Path
+from tempfile import mkdtemp
+from langchain_milvus import Milvus
+
 
 load_dotenv()
 
@@ -15,60 +25,73 @@ deployment = os.getenv("DEPLOYMENT_NAME")
 subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
 
 # Inicializar o cliente do Serviço OpenAI do Azure com autenticação baseada em chave
-client = AzureChatOpenAI(
+llm = AzureChatOpenAI(
     azure_deployment=deployment,
-    api_key=subscription_key, # type: ignore
+    api_key=subscription_key,
     api_version="2024-05-01-preview",
     azure_endpoint=endpoint
 )
-
+EXPORT_TYPE = ExportType.DOC_CHUNKS
 # Load a PDF document
-load = DoclingLoader('2311.04727v2.pdf')
+loader_docling = DoclingLoader(file_path='2311.04727v2.pdf',
+                                export_type=EXPORT_TYPE)
 
-data = load.load()
+docs = loader_docling.load()
 
-# Split o pdf
-rc_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000, # número de caracteres por chunk
-    chunk_overlap=200, # número de caracteres de sobreposição
-    separators=["\n", "\n\n"] # separadores de chunk
-)
+if EXPORT_TYPE == ExportType.DOC_CHUNKS:
+    splits = docs
+elif EXPORT_TYPE == ExportType.MARKDOWN:
+    from langchain_text_splitters import MarkdownHeaderTextSplitter
 
-docs = rc_splitter.split_documents(data)
+    splitter = MarkdownHeaderTextSplitter(
+        headers_to_split_on=[
+            ("#", "Header_1"),
+            ("##", "Header_2"),
+            ("###", "Header_3"),
+        ],
+    )
+    splits = [split for doc in docs for split in splitter.split_text(doc.page_content)]
+else:
+    raise ValueError(f"Unexpected export type: {EXPORT_TYPE}")
+
 
 # Embedding dos chunks
-embed_function = OpenAIEmbeddings(api_key=subscription_key, model='text-embedding-3-small')
+embedding = AzureOpenAIEmbeddings(api_key=subscription_key,azure_endpoint=endpoint,
+                                        model='text-embedding-3-small')
 
-vectorstore = Chroma(
-    collection_name="docs",
-    embedding_function=embed_function,
-    persist_directory='data/rag'
+milvus_uri = str(Path(mkdtemp()) / "docling.db")  # or set as needed
+vectorstore = Milvus.from_documents(
+    documents=splits,
+    embedding=embedding,
+    collection_name="docling_demo",
+    connection_args={"uri": milvus_uri},
+    index_params={"index_type": "FLAT"},
+    drop_old=True,
 )
-
-retriever = vectorstore.as_retriever(
-    search_type = 'similarity',
-    search_kwargs = {'k': 5}
+TOP_K = 5
+PROMPT = PromptTemplate.from_template(
+    "Context information is below.\n---------------------\n{context}\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: {input}\nAnswer:\n",
 )
+QUESTION = "Comment about this paper"
+retriever = vectorstore.as_retriever(search_kwargs={"k": TOP_K})
 
-# Query
-query = """
-Answer the following question using the context provided:
+def clip_text(text, threshold=100):
+    return f"{text[:threshold]}..." if len(text) > threshold else text
 
-Context:
-{context}
+question_answer_chain = create_stuff_documents_chain(llm, PROMPT)
+rag_chain = create_retrieval_chain(retriever, question_answer_chain)
+resp_dict = rag_chain.invoke({"input": QUESTION})
 
-Question:
-{question}
 
-Answer:
-"""
 
-prompt_template = PromptTemplate([("human", query)])
-
-rag_chain = ({'context': retriever, 'question': RunnablePassthrough()}
-            | prompt_template
-            | client)
-
-response = rag_chain.invoke('What is the conclusion of the paper?')
-print(response.content)
-
+clipped_answer = clip_text(resp_dict["answer"], threshold=200)
+print(f"Question:\n{resp_dict['input']}\n\nAnswer:\n{clipped_answer}")
+for i, doc in enumerate(resp_dict["context"]):
+    print()
+    print(f"Source {i+1}:")
+    print(f"  text: {json.dumps(clip_text(doc.page_content, threshold=350))}")
+    for key in doc.metadata:
+        if key != "pk":
+            val = doc.metadata.get(key)
+            clipped_val = clip_text(val) if isinstance(val, str) else val
+            print(f"  {key}: {clipped_val}")
