@@ -21,7 +21,7 @@ endpoint = os.getenv("ENDPOINT_URL")
 deployment = os.getenv("DEPLOYMENT_NAME")
 subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
 
-# Inicializar o cliente do Serviço OpenAI do Azure com autenticação baseada em chave
+# Azure client for OpenAI
 llm = AzureChatOpenAI(
     azure_deployment=deployment,
     api_key=subscription_key,
@@ -31,7 +31,7 @@ llm = AzureChatOpenAI(
 
 EXPORT_TYPE = ExportType.DOC_CHUNKS
 # Load a PDF document
-loader_docling = DoclingLoader(file_path='2311.04727v2.pdf',
+loader_docling = DoclingLoader(file_path='data/brazil_scenarios.pdf',
                                 export_type=EXPORT_TYPE)
 
 docs = loader_docling.load()
@@ -70,11 +70,11 @@ TOP_K = 5
 PROMPT = PromptTemplate.from_template(
     "Context information is below.\n---------------------\n{context}\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: {input}\nAnswer:\n",
 )
-QUESTION = "Comment about this paper"
+QUESTION = "Quais são os principais desafios para a economia brasileira?"
 retriever = vectorstore.as_retriever(
     search_kwargs={"k": TOP_K})
 
-def clip_text(text, threshold=100):
+def clip_text(text, threshold=1000):
     return f"{text[:threshold]}..." if len(text) > threshold else text
 
 question_answer_chain = create_stuff_documents_chain(llm, PROMPT)
@@ -83,5 +83,5 @@ resp_dict = rag_chain.invoke({"input": QUESTION})
 
 
 
-clipped_answer = clip_text(resp_dict["answer"], threshold=200)
+clipped_answer = clip_text(resp_dict["answer"])
 print(f"Question:\n{resp_dict['input']}\n\nAnswer:\n{clipped_answer}")
