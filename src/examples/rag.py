@@ -81,7 +81,5 @@ question_answer_chain = create_stuff_documents_chain(llm, PROMPT)
 rag_chain = create_retrieval_chain(retriever, question_answer_chain)
 resp_dict = rag_chain.invoke({"input": QUESTION})
 
-
-
 clipped_answer = clip_text(resp_dict["answer"])
 print(f"Question:\n{resp_dict['input']}\n\nAnswer:\n{clipped_answer}")
