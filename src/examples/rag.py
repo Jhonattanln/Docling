@@ -31,7 +31,7 @@ llm = AzureChatOpenAI(
 
 EXPORT_TYPE = ExportType.DOC_CHUNKS
 # Load a PDF document
-loader_docling = DoclingLoader(file_path='data/brazil_scenarios.pdf',
+loader_docling = DoclingLoader(file_path='data/ITR.pdf',
                                 export_type=EXPORT_TYPE)
 
 docs = loader_docling.load()
@@ -70,7 +70,7 @@ TOP_K = 5
 PROMPT = PromptTemplate.from_template(
     "Context information is below.\n---------------------\n{context}\n---------------------\nGiven the context information and not prior knowledge, answer the query.\nQuery: {input}\nAnswer:\n",
 )
-QUESTION = "Quais são os principais desafios para a economia brasileira?"
+QUESTION = "Sobre o que esse documento fala?"
 retriever = vectorstore.as_retriever(
     search_kwargs={"k": TOP_K})
 
